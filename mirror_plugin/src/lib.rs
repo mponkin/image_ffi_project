@@ -31,7 +31,7 @@ struct MirrorParams {
 /// `rgba_data` must have at least data_size bytes
 ///
 #[unsafe(no_mangle)]
-pub extern "C" fn process_image(
+pub unsafe extern "C" fn process_image(
     width: u32,
     height: u32,
     rgba_data: *mut c_uchar,
