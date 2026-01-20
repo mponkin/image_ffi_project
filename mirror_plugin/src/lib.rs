@@ -98,3 +98,143 @@ fn mirror_vertical(width: u32, height: u32, pixels: &mut [u8]) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+
+    fn create_test_image(width: u32, height: u32) -> Vec<u8> {
+        let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+        for y in 0..height {
+            for x in 0..width {
+                pixels.push(x as u8);
+                pixels.push(y as u8);
+                pixels.push(0);
+                pixels.push(255);
+            }
+        }
+        pixels
+    }
+
+    #[test]
+    fn test_process_image_null_rgba_data() {
+        let params = CString::new(r#"{ "horizontal": true, "vertical": false }"#).unwrap();
+        let result = unsafe { process_image(1, 1, std::ptr::null_mut(), params.as_ptr()) };
+        assert_eq!(result, PluginError::NullPointer as i32);
+    }
+
+    #[test]
+    fn test_process_image_null_params() {
+        let width = 1;
+        let height = 1;
+        let mut rgba_data = create_test_image(width, height);
+        let result =
+            unsafe { process_image(width, height, rgba_data.as_mut_ptr(), std::ptr::null()) };
+        assert_eq!(result, PluginError::NullPointer as i32);
+    }
+
+    #[test]
+    fn test_process_image_invalid_json_params() {
+        let width = 1;
+        let height = 1;
+        let mut rgba_data = create_test_image(width, height);
+        let params = CString::new(r#"{ "horizontal": true, "vertical": false, }"#).unwrap(); // Trailing comma
+        let result =
+            unsafe { process_image(width, height, rgba_data.as_mut_ptr(), params.as_ptr()) };
+        assert_eq!(result, PluginError::InvalidParams as i32);
+    }
+
+    #[test]
+    fn test_process_image_missing_fields_in_params() {
+        let width = 10;
+        let height = 10;
+        let mut rgba_data = create_test_image(width, height);
+        let params = CString::new(r#"{ "horizontal": true }"#).unwrap(); // Missing vertical
+        let result =
+            unsafe { process_image(width, height, rgba_data.as_mut_ptr(), params.as_ptr()) };
+        assert_eq!(result, PluginError::InvalidParams as i32);
+    }
+
+    #[test]
+    fn test_process_image() {
+        let width = 2;
+        let height = 2;
+        let mut rgba_data = create_test_image(width, height);
+        let original_data = rgba_data.clone();
+        let params = CString::new(r#"{ "horizontal": true, "vertical": true }"#).unwrap();
+        let result =
+            unsafe { process_image(width, height, rgba_data.as_mut_ptr(), params.as_ptr()) };
+
+        assert_eq!(result, PluginError::Ok as i32);
+        assert_ne!(rgba_data, original_data)
+    }
+
+    #[test]
+    fn test_mirror_horizontal_2x2() {
+        let width = 2;
+        let height = 2;
+
+        let mut pixels = create_test_image(width, height);
+
+        let expected = vec![1, 0, 0, 255, 0, 0, 0, 255, 1, 1, 0, 255, 0, 1, 0, 255];
+        mirror_horizontal(width, height, &mut pixels);
+        assert_eq!(pixels, expected);
+    }
+
+    #[test]
+    fn test_mirror_horizontal_3x1() {
+        let width = 3;
+        let height = 1;
+
+        let mut pixels = create_test_image(width, height);
+
+        let expected = vec![2, 0, 0, 255, 1, 0, 0, 255, 0, 0, 0, 255];
+        mirror_horizontal(width, height, &mut pixels);
+        assert_eq!(pixels, expected);
+    }
+
+    #[test]
+    fn test_mirror_horizontal_single_pixel() {
+        let width = 1;
+        let height = 1;
+        let mut pixels = create_test_image(width, height);
+        let original_pixels = pixels.clone();
+        mirror_horizontal(width, height, &mut pixels);
+        assert_eq!(pixels, original_pixels);
+    }
+
+    #[test]
+    fn test_mirror_vertical_2x2() {
+        let width = 2;
+        let height = 2;
+
+        let mut pixels = create_test_image(width, height);
+
+        let expected = vec![0, 1, 0, 255, 1, 1, 0, 255, 0, 0, 0, 255, 1, 0, 0, 255];
+        mirror_vertical(width, height, &mut pixels);
+        assert_eq!(pixels, expected);
+    }
+
+    #[test]
+    fn test_mirror_vertical_1x3() {
+        let width = 1;
+        let height = 3;
+
+        let mut pixels = create_test_image(width, height);
+
+        let expected = vec![0, 2, 0, 255, 0, 1, 0, 255, 0, 0, 0, 255];
+        mirror_vertical(width, height, &mut pixels);
+        assert_eq!(pixels, expected);
+    }
+
+    #[test]
+    fn test_mirror_vertical_single_pixel() {
+        let width = 1;
+        let height = 1;
+        let mut pixels = create_test_image(width, height);
+        let original_pixels = pixels.clone();
+        mirror_vertical(width, height, &mut pixels);
+        assert_eq!(pixels, original_pixels);
+    }
+}
