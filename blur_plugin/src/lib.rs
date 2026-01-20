@@ -147,7 +147,7 @@ fn apply_weighted_blur(width: usize, height: usize, src: &[u8], dst: &mut [u8], 
             let mut b_acc = 0.0f32;
 
             for ky in -radius_i..=radius_i {
-                for kx in -radius_i..=radius_i {
+                for kx in -radius_i..=ky {
                     let py = (y as isize + ky).clamp(0, height as isize - 1) as usize;
                     let px = (x as isize + kx).clamp(0, width as isize - 1) as usize;
 
@@ -167,5 +167,75 @@ fn apply_weighted_blur(width: usize, height: usize, src: &[u8], dst: &mut [u8], 
             dst[out_idx + 2] = b_acc.round() as u8;
             dst[out_idx + 3] = src[out_idx + 3];
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+
+    // Helper function to create a dummy image buffer
+    fn create_test_image(width: u32, height: u32, fill_color: u8) -> Vec<u8> {
+        vec![fill_color; (width * height * 4) as usize]
+    }
+
+    #[test]
+    fn test_process_image_null_rgba_data() {
+        let params =
+            CString::new(r#"{ "radius": 1, "iterations": 1, "weighted": false }"#).unwrap();
+        let result = unsafe { process_image(1, 1, std::ptr::null_mut(), params.as_ptr()) };
+        assert_eq!(result, PluginError::NullPointer as i32);
+    }
+
+    #[test]
+    fn test_process_image_null_params() {
+        let width = 1;
+        let height = 1;
+        let mut rgba_data = create_test_image(width, height, 0);
+        let result =
+            unsafe { process_image(width, height, rgba_data.as_mut_ptr(), std::ptr::null()) };
+        assert_eq!(result, PluginError::NullPointer as i32);
+    }
+
+    #[test]
+    fn test_process_image_invalid_json_params() {
+        let width = 1;
+        let height = 1;
+        let mut rgba_data = create_test_image(width, height, 0);
+        let params =
+            CString::new(r#"{ "radius": 1, "iterations": 1, "weighted": false, }"#).unwrap(); // Trailing comma makes it invalid JSON
+        let result =
+            unsafe { process_image(width, height, rgba_data.as_mut_ptr(), params.as_ptr()) };
+        assert_eq!(result, PluginError::InvalidParams as i32);
+    }
+
+    #[test]
+    fn test_process_image_missing_fields_in_params() {
+        let width = 1;
+        let height = 1;
+        let mut rgba_data = create_test_image(width, height, 0);
+        let params = CString::new(r#"{ "radius": 1 }"#).unwrap(); // Missing iterations and weighted
+        let result =
+            unsafe { process_image(width, height, rgba_data.as_mut_ptr(), params.as_ptr()) };
+        assert_eq!(result, PluginError::InvalidParams as i32);
+    }
+
+    #[test]
+    fn test_process_image_success() {
+        let width = 10;
+        let height = 10;
+        let mut rgba_data = create_test_image(width, height, 0);
+        for i in 0..rgba_data.len() {
+            rgba_data[i] = (i & 0xff) as u8;
+        }
+        let original_data = rgba_data.clone();
+        let params =
+            CString::new(r#"{ "radius": 1, "iterations": 1, "weighted": false }"#).unwrap();
+        let result =
+            unsafe { process_image(width, height, rgba_data.as_mut_ptr(), params.as_ptr()) };
+
+        assert_eq!(result, PluginError::Ok as i32);
+        assert_ne!(rgba_data, original_data);
     }
 }
