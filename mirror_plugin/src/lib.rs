@@ -54,7 +54,12 @@ pub unsafe extern "C" fn process_image(
             Err(_) => return PluginError::InvalidParams as i32,
         };
 
-        let data_size = (width * height * 4) as usize;
+        let Some(data_size) = (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|res| res.checked_mul(4))
+        else {
+            return PluginError::SizeIsTooBig as i32;
+        };
 
         // SAFETY: rgba_data must have at least data_size bytes
         let pixels = unsafe { std::slice::from_raw_parts_mut(rgba_data, data_size) };
@@ -114,7 +119,7 @@ fn mirror_vertical(width: u32, height: u32, pixels: &mut [u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::CString;
+    use std::{ffi::CString, u32};
 
     fn create_test_image(width: u32, height: u32) -> Vec<u8> {
         let mut pixels = Vec::with_capacity((width * height * 4) as usize);
@@ -169,7 +174,17 @@ mod tests {
     }
 
     #[test]
-    fn test_process_image() {
+    fn test_size_too_big() {
+        let mut rgba_data = vec![0u8; 4];
+        let params = CString::new(r#"{ "horizontal": true, "vertical": true }"#).unwrap();
+        let result =
+            unsafe { process_image(u32::MAX, u32::MAX, rgba_data.as_mut_ptr(), params.as_ptr()) };
+
+        assert_eq!(result, PluginError::SizeIsTooBig as i32);
+    }
+
+    #[test]
+    fn test_process_image_does_something_if_no_errors() {
         let width = 2;
         let height = 2;
         let mut rgba_data = create_test_image(width, height);
