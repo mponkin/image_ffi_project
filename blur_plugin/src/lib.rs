@@ -164,7 +164,7 @@ fn apply_weighted_blur(width: usize, height: usize, src: &[u8], dst: &mut [u8], 
             let mut b_acc = 0.0f32;
 
             for ky in -radius_i..=radius_i {
-                for kx in -radius_i..=ky {
+                for kx in -radius_i..=radius_i {
                     let py = (y as isize + ky).clamp(0, height as isize - 1) as usize;
                     let px = (x as isize + kx).clamp(0, width as isize - 1) as usize;
 
