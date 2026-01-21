@@ -119,7 +119,7 @@ fn mirror_vertical(width: u32, height: u32, pixels: &mut [u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{ffi::CString, u32};
+    use std::ffi::CString;
 
     fn create_test_image(width: u32, height: u32) -> Vec<u8> {
         let mut pixels = Vec::with_capacity((width * height * 4) as usize);
