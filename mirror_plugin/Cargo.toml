@@ -8,6 +8,7 @@ name = "mirror"
 crate-type = ["cdylib"]
 
 [dependencies]
+log = { workspace = true }
 plugin_errors = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
