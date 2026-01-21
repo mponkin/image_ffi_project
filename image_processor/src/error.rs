@@ -36,6 +36,10 @@ pub enum AppError {
     /// Panic happened during image processing
     #[error("Panic happened during image processing")]
     PluginPanic,
+
+    /// Plugin unable to convert image with given dimensions
+    #[error("Plugin unable to convert image with given dimensions")]
+    SizeIsTooBig,
 }
 
 impl AppError {
@@ -48,6 +52,7 @@ impl AppError {
             Some(PluginError::InvalidParams) => Some(AppError::PluginInvalidParams),
             Some(PluginError::NullPointer) => Some(AppError::NullPointer),
             Some(PluginError::Panic) => Some(AppError::PluginPanic),
+            Some(PluginError::SizeIsTooBig) => Some(AppError::SizeIsTooBig),
             None => Some(AppError::PluginUnknownErrorCode(code)),
         }
     }

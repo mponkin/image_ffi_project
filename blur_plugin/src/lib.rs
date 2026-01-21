@@ -58,7 +58,12 @@ pub unsafe extern "C" fn process_image(
             return PluginError::Ok as i32;
         }
 
-        let data_size = (width * height * 4) as usize;
+        let Some(data_size) = (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|res| res.checked_mul(4))
+        else {
+            return PluginError::SizeIsTooBig as i32;
+        };
 
         // SAFETY: rgba_data must have at least data_size bytes
         let pixels = unsafe { std::slice::from_raw_parts_mut(rgba_data, data_size) };
@@ -234,7 +239,18 @@ mod tests {
     }
 
     #[test]
-    fn test_process_image_success() {
+    fn test_size_too_big() {
+        let mut rgba_data = vec![0u8; 4];
+        let params =
+            CString::new(r#"{ "radius": 1, "iterations": 1, "weighted": false }"#).unwrap();
+        let result =
+            unsafe { process_image(u32::MAX, u32::MAX, rgba_data.as_mut_ptr(), params.as_ptr()) };
+
+        assert_eq!(result, PluginError::SizeIsTooBig as i32);
+    }
+
+    #[test]
+    fn test_process_image_does_something_if_no_errors() {
         let width = 10;
         let height = 10;
         let mut rgba_data = create_test_image(width, height, 0);
