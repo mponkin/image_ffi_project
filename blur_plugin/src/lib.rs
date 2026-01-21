@@ -254,8 +254,8 @@ mod tests {
         let width = 10;
         let height = 10;
         let mut rgba_data = create_test_image(width, height, 0);
-        for i in 0..rgba_data.len() {
-            rgba_data[i] = (i & 0xff) as u8;
+        for (i, data) in rgba_data.iter_mut().enumerate() {
+            *data = (i & 0xff) as u8;
         }
         let original_data = rgba_data.clone();
         let params =
