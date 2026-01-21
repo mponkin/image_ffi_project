@@ -5,7 +5,9 @@
 
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uchar};
+use std::panic::catch_unwind;
 
+use log::error;
 use plugin_errors::PluginError;
 use serde::Deserialize;
 
@@ -37,33 +39,43 @@ pub unsafe extern "C" fn process_image(
     rgba_data: *mut c_uchar,
     params: *const c_char,
 ) -> i32 {
-    // Prevent usage of null pointers
-    if rgba_data.is_null() || params.is_null() {
-        return PluginError::NullPointer as i32;
+    let result = catch_unwind(move || {
+        // Prevent usage of null pointers
+        if rgba_data.is_null() || params.is_null() {
+            return PluginError::NullPointer as i32;
+        }
+
+        // SAFETY: `params` should point to a valid UTF-8 string ending with nul-terminator
+        let c_str = unsafe { CStr::from_ptr(params) };
+        let params_str = c_str.to_string_lossy();
+
+        let config: MirrorParams = match serde_json::from_str(&params_str) {
+            Ok(p) => p,
+            Err(_) => return PluginError::InvalidParams as i32,
+        };
+
+        let data_size = (width * height * 4) as usize;
+
+        // SAFETY: rgba_data must have at least data_size bytes
+        let pixels = unsafe { std::slice::from_raw_parts_mut(rgba_data, data_size) };
+
+        if config.horizontal {
+            mirror_horizontal(width, height, pixels);
+        }
+        if config.vertical {
+            mirror_vertical(width, height, pixels);
+        }
+
+        PluginError::Ok as i32
+    });
+
+    match result {
+        Ok(status) => status,
+        Err(e) => {
+            error!("panic in process_image {e:?}");
+            PluginError::Panic as i32
+        }
     }
-
-    // SAFETY: `params` should point to a valid UTF-8 string ending with nul-terminator
-    let c_str = unsafe { CStr::from_ptr(params) };
-    let params_str = c_str.to_string_lossy();
-
-    let config: MirrorParams = match serde_json::from_str(&params_str) {
-        Ok(p) => p,
-        Err(_) => return PluginError::InvalidParams as i32,
-    };
-
-    let data_size = (width * height * 4) as usize;
-
-    // SAFETY: rgba_data must have at least data_size bytes
-    let pixels = unsafe { std::slice::from_raw_parts_mut(rgba_data, data_size) };
-
-    if config.horizontal {
-        mirror_horizontal(width, height, pixels);
-    }
-    if config.vertical {
-        mirror_vertical(width, height, pixels);
-    }
-
-    PluginError::Ok as i32
 }
 
 fn mirror_horizontal(width: u32, height: u32, pixels: &mut [u8]) {

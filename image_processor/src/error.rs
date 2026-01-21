@@ -32,6 +32,10 @@ pub enum AppError {
     /// Plugin finished work with error and returned unexpected error code
     #[error("Plugin returned unknown error code {0}")]
     PluginUnknownErrorCode(i32),
+
+    /// Panic happened during image processing
+    #[error("Panic happened during image processing")]
+    PluginPanic,
 }
 
 impl AppError {
@@ -43,6 +47,7 @@ impl AppError {
             Some(PluginError::Ok) => None,
             Some(PluginError::InvalidParams) => Some(AppError::PluginInvalidParams),
             Some(PluginError::NullPointer) => Some(AppError::NullPointer),
+            Some(PluginError::Panic) => Some(AppError::PluginPanic),
             None => Some(AppError::PluginUnknownErrorCode(code)),
         }
     }

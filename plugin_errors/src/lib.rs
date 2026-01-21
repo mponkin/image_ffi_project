@@ -14,6 +14,9 @@ pub enum PluginError {
 
     /// Null pointer is given to plugin
     NullPointer = 2,
+
+    /// Panic happened while processing image
+    Panic = 3,
 }
 
 impl PluginError {
@@ -23,6 +26,7 @@ impl PluginError {
             0 => Some(PluginError::Ok),
             1 => Some(PluginError::InvalidParams),
             2 => Some(PluginError::NullPointer),
+            3 => Some(PluginError::Panic),
             _ => None,
         }
     }
